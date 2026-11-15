@@ -15,7 +15,13 @@ body.edit .mod.sel{outline-color:#4af}
 #clock .t{font-size:6.5em;line-height:1.05;font-weight:600}
 #clock .d{font-size:1.3em;opacity:.85}
 h3{margin:0 0 6px;font-size:1em;opacity:.8;font-weight:600}
-.ev{display:flex;gap:10px;padding:3px 0;font-size:.95em}.ev b{min-width:5.5em;font-weight:400;opacity:.75}
+.ev{display:flex;align-items:center;gap:10px;padding:3px 0;font-size:.95em;cursor:pointer}.ev b{min-width:5.5em;font-weight:400;opacity:.75}
+.ev input{margin:0;flex:none;accent-color:currentColor}
+.ev.done span{text-decoration:line-through;opacity:.5}.ev.done b{opacity:.4}
+.dh{font-size:.85em;font-weight:600;opacity:.7;margin:8px 0 2px}
+#events h3{display:flex;justify-content:space-between;align-items:center}
+#events button{background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:0 6px}
+#events button:disabled{opacity:.3;cursor:default}
 #weather .big{font-size:2.6em;font-weight:600}
 #cal{display:flex;flex-direction:column}
 .nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-weight:600}
@@ -23,7 +29,7 @@ h3{margin:0 0 6px;font-size:1em;opacity:.8;font-weight:600}
 .grid{flex:1;display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:1fr;gap:3px;min-height:0}
 .grid>div{border:1px solid #fff3;border-radius:6px;padding:3px 5px;overflow:hidden;font-size:.8em}
 .grid .h{border:0;text-align:center;opacity:.7;padding:0;grid-row:auto}
-.grid .today{background:#fff3}.grid .o{opacity:.4}
+.grid .today{background:#fff3}.grid .o{opacity:.4}.grid [data-d]{cursor:pointer}.grid .sel{outline:2px solid currentColor;outline-offset:-2px}.grid i.x{text-decoration:line-through;opacity:.45}
 .grid i{display:block;font-style:normal;font-size:.8em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.9}
 #music{display:flex;flex-direction:column;gap:6px}
 #music .np{display:flex;gap:10px;align-items:center}
@@ -39,6 +45,7 @@ h3{margin:0 0 6px;font-size:1em;opacity:.8;font-weight:600}
 #panel input,#panel select,#panel button{font:inherit;max-width:170px;background:#333;color:#fff;border:1px solid #555;border-radius:5px;padding:3px 6px}
 #panel input[type=color]{padding:0;height:24px;width:50px}
 #panel input[type=text]{width:170px}
+#panel textarea{width:170px;font:inherit;font-size:11px;background:#333;color:#fff;border:1px solid #555;border-radius:5px;padding:3px 6px}
 #msg{color:#fc6;margin-top:6px}
 </style></head><body>
 <div id="bg"></div>
@@ -66,10 +73,10 @@ h3{margin:0 0 6px;font-size:1em;opacity:.8;font-weight:600}
 <label>Seconds<input type="checkbox" id="sec"></label>
 <label>City<input type="text" id="city" placeholder="e.g. Raleigh"></label>
 <label>Fahrenheit<input type="checkbox" id="f"></label>
-<h4>Outlook calendar</h4>
-<label>ICS link<input type="text" id="ics" placeholder="published .ics URL"></label>
+<h4>Calendars (upload several; same file name replaces)</h4>
+<label>ICS links<textarea id="ics" rows="4" placeholder="one .ics link per line"></textarea></label>
 <label>Proxy prefix<input type="text" id="proxy" placeholder="https://…workers.dev/?u="></label>
-<label>or .ics file<input type="file" id="icsf" accept=".ics"></label>
+<label>Upload .ics<input type="file" id="icsf" accept=".ics" multiple></label><div id="calist"></div>
 <h4>Spotify</h4>
 <label>Client ID<input type="text" id="cid"></label>
 <button id="sp">Connect Spotify</button>
@@ -79,7 +86,7 @@ h3{margin:0 0 6px;font-size:1em;opacity:.8;font-weight:600}
 const $=s=>document.querySelector(s),L=localStorage;
 const IDS=['clock','events','weather','music','cal'];
 let S;try{S=JSON.parse(L.dash)}catch(e){}
-S=S||{pos:{},st:{},cfg:{}};
+S=S||{pos:{},st:{},cfg:{}};S.done=S.done||{};
 const save=()=>L.dash=JSON.stringify(S);
 const DEF={font:'Poppins',size:16,color:'#ffffff',bc:'#ffffff',bw:1,bs:'solid',br:14,bgc:'#000000',bga:35};
 const eff=id=>({...DEF,...S.st.all,...(id!='all'?S.st[id]:{})});
@@ -133,11 +140,12 @@ function parseICS(t){t=t.replace(/\r?\n[ \t]/g,'');const ev=[];let c=null;
  if(n=='SUMMARY')c.t=v.replace(/\\(.)/g,'$1');
  if(n=='DTSTART'){c.s=pd(v);c.ad=v.length==8}
  if(n=='DTEND')c.e=pd(v);
+ if(n=='UID')c.u=v;
  if(n=='RRULE')c.r=Object.fromEntries(v.split(';').map(p=>p.split('=')));
  if(n=='EXDATE')(c.x=c.x||[]).push(...v.split(',').map(x=>+pd(x)))}}
  return ev}
 function occ(ev,a,b){const o=[],dur=ev.e?ev.e-ev.s:0,
- push=s=>{if(s<b&&new Date(+s+dur)>=a&&!(ev.x||[]).includes(+s))o.push({t:ev.t,s,ad:ev.ad})},r=ev.r;
+ push=s=>{if(s<b&&(dur?new Date(+s+dur)>a:s>=a)&&!(ev.x||[]).includes(+s))o.push({t:ev.t,s,e:new Date(+s+dur),ad:ev.ad,k:(ev.u||ev.t)+'|'+(+s)})},r=ev.r;
  if(!r){push(ev.s);return o}
  const iv=+r.INTERVAL||1,un=r.UNTIL?pd(r.UNTIL):null,cn=+r.COUNT||1e9,
  bd=r.BYDAY?r.BYDAY.split(',').map(x=>['SU','MO','TU','WE','TH','FR','SA'].indexOf(x.slice(-2))):null,s0=new Date(ev.s).setHours(0,0,0,0);
@@ -154,23 +162,55 @@ const evs=(a,b)=>EV.flatMap(e=>occ(e,a,b)).sort((x,y)=>x.s-y.s);
 const day=n=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+n);return d};
 const hm=e=>e.ad?'All day':e.s.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
 const esc=s=>(s||'(no title)').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-async function loadICS(){let t=L.icsTxt||'';
- if(S.cfg.ics){try{const u=S.cfg.ics,r=await fetch(S.cfg.proxy?S.cfg.proxy+encodeURIComponent(u):u);t=await r.text();try{L.icsTxt=t}catch(e){}msg()}
- catch(e){msg('Could not fetch the calendar link (blocked by CORS). Add a proxy prefix or upload the .ics file.')}}
+let CALS;try{CALS=JSON.parse(L.cals||'[]')}catch(e){CALS=[]}
+if(L.icsTxt&&!CALS.length){CALS=[{n:'Calendar 1',t:L.icsTxt}];try{L.cals=JSON.stringify(CALS);delete L.icsTxt}catch(e){}}
+const saveCals=()=>{try{L.cals=JSON.stringify(CALS)}catch(e){msg('Browser storage is full. Remove a calendar.')}};
+let SEL=null,UN=[],RE=[];
+async function loadICS(){let t=CALS.map(c=>c.t).join('\n');
+ const us=(S.cfg.ics||'').split(/\s+/).filter(Boolean);
+ if(us.length){let bad=0;const p=await Promise.all(us.map(async u=>{try{const r=await fetch(S.cfg.proxy?S.cfg.proxy+encodeURIComponent(u):u);if(!r.ok)throw 0;return await r.text()}catch(e){bad++;return ''}}));
+ t+='\n'+p.join('\n');
+ msg(bad?`${bad} of ${us.length} calendar links failed (CORS, wrong proxy prefix, or the Worker blocks that site).`:'')}
  EV=parseICS(t);evRender();calRender()}
-function evRender(){const a=day(0),b=day(2),l=evs(a,b),sec=(n,t)=>{const x=l.filter(e=>e.s>=day(n)&&e.s<day(n+1));
- return `<h3>${t}</h3>`+(x.length?x.map(e=>`<div class="ev"><b>${hm(e)}</b><span>${esc(e.t)}</span></div>`).join(''):'<div class="ev"><b></b>Nothing scheduled</div>')};
- $('#events').innerHTML=sec(0,'Today')+sec(1,'Tomorrow')}
+const dl=d=>+d==+day(0)?'Today':+d==+day(1)?'Tomorrow':d.toLocaleDateString([],{weekday:'short',month:'short',day:'numeric'});
+const row=e=>`<label class="ev${S.done[e.k]?' done':''}"><input type="checkbox" data-k="${encodeURIComponent(e.k)}"${S.done[e.k]?' checked':''}><b>${hm(e)}</b><span>${esc(e.t)}</span></label>`;
+function evRender(){const el=$('#events'),sc=el.scrollTop;let h='';
+ const tb=`<span><button data-u="undo" title="Undo (Ctrl+Z)"${UN.length?'':' disabled'}>↶</button><button data-u="redo" title="Redo"${RE.length?'':' disabled'}>↷</button></span>`;
+ if(SEL!=null){const d=new Date(SEL),x=evs(d,new Date(d.getFullYear(),d.getMonth(),d.getDate()+1)).filter(e=>e.s>=d);
+  h=`<h3><span><button data-back="1" title="Back to upcoming">←</button>${d.toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'})}</span>${tb}</h3>`+(x.length?x.map(row).join(''):'<div class="ev">Nothing scheduled</div>')}
+ else{const n=new Date(),l=evs(day(0),day(30)).filter(e=>e.s>=day(0)&&e.e>=n).slice(0,40);let last='';
+  h=`<h3><span>Upcoming events</span>${tb}</h3>`;
+  l.forEach(e=>{const g=new Date(e.s).setHours(0,0,0,0);if(g!=last){last=g;h+=`<div class="dh">${dl(new Date(g))}</div>`}h+=row(e)});
+  if(!l.length)h+='<div class="ev">Nothing coming up</div>'}
+ el.innerHTML=h;el.scrollTop=sc}
 let cy=new Date().getFullYear(),cm=new Date().getMonth();
 function calRender(){const first=new Date(cy,cm,1),start=new Date(cy,cm,1-first.getDay()),end=new Date(+start);end.setDate(end.getDate()+42);
  const l=evs(start,end),td=day(0).toDateString();
- let h=`<div class="nav"><span><button data-n="-12">«</button><button data-n="-1">‹</button></span><span>${first.toLocaleDateString([],{month:'long',year:'numeric'})}</span><span><button data-n="1">›</button><button data-n="12">»</button></span></div><div class="grid">`;
+ let h=`<div class="nav"><span><button data-n="-12">«</button><button data-n="-1">‹</button></span><span>${first.toLocaleDateString([],{month:'long',year:'numeric'})} <button data-today="1">Today</button></span><span><button data-n="1">›</button><button data-n="12">»</button></span></div><div class="grid">`;
  'SMTWTFS'.split('').forEach(c=>h+=`<div class="h">${c}</div>`);
  for(let i=0;i<42;i++){const d=new Date(start);d.setDate(d.getDate()+i);const x=l.filter(e=>e.s.toDateString()==d.toDateString());
-  h+=`<div class="${d.toDateString()==td?'today ':''}${d.getMonth()!=cm?'o':''}">${d.getDate()}${x.slice(0,3).map(e=>`<i>${esc(e.t)}</i>`).join('')}${x.length>3?`<i>+${x.length-3} more</i>`:''}</div>`}
+  h+=`<div data-d="${+d}" class="${d.toDateString()==td?'today ':''}${+d==SEL?'sel ':''}${d.getMonth()!=cm?'o':''}">${d.getDate()}${x.slice(0,3).map(e=>`<i class="${S.done[e.k]?'x':''}">${esc(e.t)}</i>`).join('')}${x.length>3?`<i>+${x.length-3} more</i>`:''}</div>`}
  $('#cal').innerHTML=h+'</div>'}
-$('#cal').onclick=e=>{const n=e.target.dataset.n;if(n){const d=new Date(cy,cm+ +n,1);cy=d.getFullYear();cm=d.getMonth();calRender()}};
-$('#icsf').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{L.icsTxt=await f.text()}catch(x){}S.cfg.ics='';$('#ics').value='';save();loadICS()};
+$('#cal').onclick=e=>{const b=e.target.closest('button');
+ if(b&&b.dataset.n){const d=new Date(cy,cm+ +b.dataset.n,1);cy=d.getFullYear();cm=d.getMonth();calRender();return}
+ if(b&&b.dataset.today){const n=new Date();cy=n.getFullYear();cm=n.getMonth();SEL=+day(0);evRender();calRender();return}
+ const c=e.target.closest('[data-d]');if(c){const t=+c.dataset.d;SEL=SEL==t?null:t;evRender();calRender()}};
+
+/* checklist with undo / redo */
+function tog(k,rec=true){if(S.done[k])delete S.done[k];else S.done[k]=1;save();if(rec){UN.push(k);RE=[]}evRender();calRender()}
+const undo=()=>{const k=UN.pop();if(k){RE.push(k);tog(k,false)}};
+const redo=()=>{const k=RE.pop();if(k){UN.push(k);tog(k,false)}};
+$('#events').onchange=e=>{if(e.target.dataset.k)tog(decodeURIComponent(e.target.dataset.k))};
+$('#events').onclick=e=>{const b=e.target.closest('button');if(!b)return;
+ if(b.dataset.u=='undo')undo();if(b.dataset.u=='redo')redo();if(b.dataset.back){SEL=null;evRender();calRender()}};
+document.addEventListener('keydown',e=>{const t=e.target;if(t.tagName=='TEXTAREA'||(t.tagName=='INPUT'&&t.type!='checkbox'))return;
+ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()=='z'){e.preventDefault();e.shiftKey?redo():undo()}});
+
+/* uploaded calendars */
+function calList(){$('#calist').innerHTML=CALS.map((c,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;margin:2px 0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px">${esc(c.n)}</span><button data-r="${i}">✕</button></div>`).join('')||'<div style="opacity:.6">No calendars uploaded yet.</div>'}
+$('#calist').onclick=e=>{const i=e.target.dataset.r;if(i!=null){CALS.splice(+i,1);saveCals();calList();loadICS()}};
+$('#icsf').onchange=async e=>{for(const f of e.target.files){const t=await f.text(),i=CALS.findIndex(c=>c.n==f.name);i<0?CALS.push({n:f.name,t}):CALS[i].t=t}
+ e.target.value='';saveCals();calList();loadICS()};
 
 /* ---------- weather (Open-Meteo, no key) ---------- */
 const WI=c=>c==0?'☀️':c<4?'⛅':c<50?'🌫️':c<70?'🌧️':c<80?'❄️':c<90?'🌦️':'⛈️';
@@ -217,7 +257,7 @@ $('#sp').onclick=login;
  $('#'+k).onchange=()=>{S.cfg[k]=$('#'+k)[p];save();if(k=='ics'||k=='proxy')loadICS();if(k=='city'||k=='f')weather();tick()}});
 (async()=>{const q=new URLSearchParams(location.search);
  if(q.get('code')){try{await tokenReq({grant_type:'authorization_code',code:q.get('code'),redirect_uri:RU,code_verifier:L.sv})}catch(e){msg('Spotify login failed.')}history.replaceState({},'',RU)}
- layout();apply();fill();showBg();tick();loadICS();weather();drawMusic();
+ layout();apply();fill();showBg();tick();calList();loadICS();weather();drawMusic();
  setInterval(tick,1e3);setInterval(loadICS,9e5);setInterval(weather,18e5);setInterval(drawMusic,3e3)})();
 addEventListener('resize',layout);
 </script></body></html>
