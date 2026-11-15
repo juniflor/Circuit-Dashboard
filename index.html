@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Dashboard</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron&family=Pacifico&family=Playfair+Display&family=Poppins:wght@300;400;600&family=Roboto+Mono&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;font-family:Poppins,sans-serif;background:#111}
+#bg{position:fixed;inset:0;z-index:0;background:linear-gradient(120deg,#1e3c72,#6a11cb,#ff6a88,#2a5298);background-size:400% 400%;animation:g 20s ease infinite}
+#bg video{width:100%;height:100%;object-fit:cover}
+@keyframes g{50%{background-position:100% 50%}}
+.mod{position:absolute;z-index:1;overflow:auto;padding:12px 16px;backdrop-filter:blur(6px);scrollbar-width:none}
+body.edit .mod{resize:both;cursor:move;outline:2px dashed #fff9;user-select:none}
+body.edit .mod.sel{outline-color:#4af}
+#clock{text-align:center}
+#clock .t{font-size:6.5em;line-height:1.05;font-weight:600}
+#clock .d{font-size:1.3em;opacity:.85}
+h3{margin:0 0 6px;font-size:1em;opacity:.8;font-weight:600}
+.ev{display:flex;gap:10px;padding:3px 0;font-size:.95em}.ev b{min-width:5.5em;font-weight:400;opacity:.75}
+#weather .big{font-size:2.6em;font-weight:600}
+#cal{display:flex;flex-direction:column}
+.nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-weight:600}
+.nav button,#music button{background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:2px 8px}
+.grid{flex:1;display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:1fr;gap:3px;min-height:0}
+.grid>div{border:1px solid #fff3;border-radius:6px;padding:3px 5px;overflow:hidden;font-size:.8em}
+.grid .h{border:0;text-align:center;opacity:.7;padding:0;grid-row:auto}
+.grid .today{background:#fff3}.grid .o{opacity:.4}
+.grid i{display:block;font-style:normal;font-size:.8em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.9}
+#music{display:flex;flex-direction:column;gap:6px}
+#music .np{display:flex;gap:10px;align-items:center}
+#music img{width:56px;height:56px;border-radius:6px;object-fit:cover}
+#bar{height:4px;background:#fff3;border-radius:2px}#bar div{height:100%;background:currentColor;border-radius:2px}
+#music select,#music input{width:100%;background:#0006;color:inherit;border:1px solid #fff4;border-radius:6px;padding:3px;font:inherit;font-size:.85em}
+#res div{cursor:pointer;font-size:.85em;padding:2px 0}
+#gear{position:fixed;right:14px;bottom:14px;z-index:5;width:42px;height:42px;border-radius:50%;border:0;background:#000a;color:#fff;font-size:20px;cursor:pointer}
+#panel{position:fixed;right:0;top:0;bottom:0;width:320px;z-index:4;background:#111e;color:#fff;padding:16px;overflow:auto;transform:translateX(100%);transition:transform .2s;font:13px Poppins,sans-serif}
+#panel.open{transform:none}
+#panel h4{margin:16px 0 6px;font-size:13px}
+#panel label{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:4px 0}
+#panel input,#panel select,#panel button{font:inherit;max-width:170px;background:#333;color:#fff;border:1px solid #555;border-radius:5px;padding:3px 6px}
+#panel input[type=color]{padding:0;height:24px;width:50px}
+#panel input[type=text]{width:170px}
+#msg{color:#fc6;margin-top:6px}
+</style></head><body>
+<div id="bg"></div>
+<button id="gear" title="Settings">⚙</button>
+<div id="panel">
+<h4>Layout</h4>
+<label>Edit mode (drag &amp; resize)<input type="checkbox" id="edit"></label>
+<button id="resetLayout">Reset layout</button>
+<h4>Background (gif / video / png)</h4>
+<input type="file" id="bgf" accept="image/*,video/*"> <button id="bgx">Remove</button>
+<h4>Style</h4>
+<label>Apply to<select id="scope"><option value="all">Everything</option><option value="clock">Clock</option><option value="events">Events</option><option value="weather">Weather</option><option value="music">Music</option><option value="cal">Calendar</option></select></label>
+<label>Font<select id="f-font"><option>Poppins</option><option>Orbitron</option><option>Playfair Display</option><option>Roboto Mono</option><option>Pacifico</option><option>Georgia</option><option>Arial</option></select></label>
+<label>Font size (px)<input type="number" id="f-size" min="8" max="80"></label>
+<label>Text color<input type="color" id="f-color"></label>
+<label>Border color<input type="color" id="f-bc"></label>
+<label>Border width<input type="number" id="f-bw" min="0" max="20"></label>
+<label>Border style<select id="f-bs"><option>solid</option><option>dashed</option><option>dotted</option><option>double</option><option>none</option></select></label>
+<label>Corner radius<input type="number" id="f-br" min="0" max="60"></label>
+<label>Box color<input type="color" id="f-bgc"></label>
+<label>Box opacity<input type="range" id="f-bga" min="0" max="100"></label>
+<button id="resetScope">Reset this scope</button>
+<h4>Clock &amp; weather</h4>
+<label>24-hour<input type="checkbox" id="h24"></label>
+<label>Seconds<input type="checkbox" id="sec"></label>
+<label>City<input type="text" id="city" placeholder="e.g. Raleigh"></label>
+<label>Fahrenheit<input type="checkbox" id="f"></label>
+<h4>Outlook calendar</h4>
+<label>ICS link<input type="text" id="ics" placeholder="published .ics URL"></label>
+<label>Proxy prefix<input type="text" id="proxy" placeholder="https://…workers.dev/?u="></label>
+<label>or .ics file<input type="file" id="icsf" accept=".ics"></label>
+<h4>Spotify</h4>
+<label>Client ID<input type="text" id="cid"></label>
+<button id="sp">Connect Spotify</button>
+<div id="msg"></div>
+</div>
+<script>
+const $=s=>document.querySelector(s),L=localStorage;
+const IDS=['clock','events','weather','music','cal'];
+let S;try{S=JSON.parse(L.dash)}catch(e){}
+S=S||{pos:{},st:{},cfg:{}};
+const save=()=>L.dash=JSON.stringify(S);
+const DEF={font:'Poppins',size:16,color:'#ffffff',bc:'#ffffff',bw:1,bs:'solid',br:14,bgc:'#000000',bga:35};
+const eff=id=>({...DEF,...S.st.all,...(id!='all'?S.st[id]:{})});
+IDS.forEach(id=>{const e=document.createElement('section');e.className='mod';e.id=id;document.body.append(e)});
+const msg=t=>$('#msg').textContent=t||'';
+
+/* ---------- layout, drag, style ---------- */
+function layout(){const W=innerWidth,H=innerHeight,d={clock:[.05*W,10,.9*W,170],events:[.05*W,190,.44*W,180],weather:[.51*W,190,.2*W,180],music:[.73*W,190,.22*W,180],cal:[.05*W,380,.9*W,Math.max(300,H-395)]};
+IDS.forEach(id=>{const p=S.pos[id]||{x:d[id][0],y:d[id][1],w:d[id][2],h:d[id][3]};Object.assign($('#'+id).style,{left:p.x+'px',top:p.y+'px',width:p.w+'px',height:p.h+'px'})})}
+function savePos(){IDS.forEach(id=>{const e=$('#'+id);S.pos[id]={x:e.offsetLeft,y:e.offsetTop,w:e.offsetWidth,h:e.offsetHeight}});save()}
+function apply(){IDS.forEach(id=>{const s=eff(id),c=[1,3,5].map(i=>parseInt(s.bgc.substr(i,2),16));
+Object.assign($('#'+id).style,{fontFamily:`'${s.font}',sans-serif`,fontSize:s.size+'px',color:s.color,border:`${s.bw}px ${s.bs} ${s.bc}`,borderRadius:s.br+'px',background:`rgba(${c},${s.bga/100})`})})}
+const F=['font','size','color','bc','bw','bs','br','bgc','bga'];
+function fill(){const s=eff($('#scope').value);F.forEach(k=>$('#f-'+k).value=s[k])}
+F.forEach(k=>$('#f-'+k).oninput=()=>{const sc=$('#scope').value,v=$('#f-'+k).value;(S.st[sc]=S.st[sc]||{})[k]=/size|bw|br|bga/.test(k)?+v:v;apply();save()});
+$('#scope').onchange=()=>{fill();document.querySelectorAll('.mod').forEach(m=>m.classList.toggle('sel',m.id==$('#scope').value))};
+$('#resetScope').onclick=()=>{delete S.st[$('#scope').value];apply();fill();save()};
+$('#resetLayout').onclick=()=>{S.pos={};layout();save()};
+$('#gear').onclick=()=>$('#panel').classList.toggle('open');
+$('#edit').onchange=e=>document.body.classList.toggle('edit',e.target.checked);
+let dr;
+document.addEventListener('pointerdown',e=>{
+ if(!document.body.classList.contains('edit'))return;const m=e.target.closest('.mod');if(!m)return;
+ $('#scope').value=m.id;$('#scope').onchange();
+ const r=m.getBoundingClientRect();if(e.clientX>r.right-24&&e.clientY>r.bottom-24)return;
+ dr={m,dx:e.clientX-m.offsetLeft,dy:e.clientY-m.offsetTop};e.preventDefault()});
+document.addEventListener('pointermove',e=>{if(!dr)return;dr.m.style.left=e.clientX-dr.dx+'px';dr.m.style.top=e.clientY-dr.dy+'px'});
+document.addEventListener('pointerup',()=>{if(document.body.classList.contains('edit')){dr=null;savePos()}});
+
+/* ---------- background (stored in IndexedDB) ---------- */
+const idb=(m,v)=>new Promise(r=>{const q=indexedDB.open('dash',1);q.onupgradeneeded=()=>q.result.createObjectStore('f');
+q.onsuccess=()=>{const s=q.result.transaction('f',m=='get'?'readonly':'readwrite').objectStore('f'),x=m=='get'?s.get('bg'):m=='put'?s.put(v,'bg'):s.delete('bg');x.onsuccess=()=>r(x.result);x.onerror=()=>r()};q.onerror=()=>r()});
+async function showBg(){const b=await idb('get'),el=$('#bg');el.innerHTML='';el.style.cssText='';
+ if(!b)return;const u=URL.createObjectURL(b);
+ if(b.type.startsWith('video')){el.style.animation='none';el.innerHTML=`<video src="${u}" autoplay muted loop playsinline></video>`}
+ else el.style.cssText=`animation:none;background:url(${u}) center/cover`}
+$('#bgf').onchange=async e=>{const f=e.target.files[0];if(f){await idb('put',f);showBg()}};
+$('#bgx').onclick=async()=>{await idb('del');showBg()};
+
+/* ---------- clock ---------- */
+function tick(){const n=new Date(),o={hour:'numeric',minute:'2-digit',hour12:!S.cfg.h24};if(S.cfg.sec)o.second='2-digit';
+$('#clock').innerHTML=`<div class="t">${n.toLocaleTimeString([],o)}</div><div class="d">${n.toLocaleDateString([],{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</div>`}
+
+/* ---------- Outlook / ICS ---------- */
+let EV=[];
+const pd=v=>{const m=v.match(/(\d{4})(\d\d)(\d\d)(?:T(\d\d)(\d\d)(\d\d)(Z)?)?/);if(!m)return null;
+ return m[7]?new Date(Date.UTC(m[1],m[2]-1,m[3],m[4],m[5],m[6])):new Date(m[1],m[2]-1,m[3],m[4]||0,m[5]||0,m[6]||0)};
+function parseICS(t){t=t.replace(/\r?\n[ \t]/g,'');const ev=[];let c=null;
+ for(const l of t.split(/\r?\n/)){if(l=='BEGIN:VEVENT')c={};else if(l=='END:VEVENT'){if(c.s)ev.push(c);c=null}
+ else if(c){const i=l.indexOf(':');if(i<0)continue;const n=l.slice(0,i).split(';')[0],v=l.slice(i+1);
+ if(n=='SUMMARY')c.t=v.replace(/\\(.)/g,'$1');
+ if(n=='DTSTART'){c.s=pd(v);c.ad=v.length==8}
+ if(n=='DTEND')c.e=pd(v);
+ if(n=='RRULE')c.r=Object.fromEntries(v.split(';').map(p=>p.split('=')));
+ if(n=='EXDATE')(c.x=c.x||[]).push(...v.split(',').map(x=>+pd(x)))}}
+ return ev}
+function occ(ev,a,b){const o=[],dur=ev.e?ev.e-ev.s:0,
+ push=s=>{if(s<b&&new Date(+s+dur)>=a&&!(ev.x||[]).includes(+s))o.push({t:ev.t,s,ad:ev.ad})},r=ev.r;
+ if(!r){push(ev.s);return o}
+ const iv=+r.INTERVAL||1,un=r.UNTIL?pd(r.UNTIL):null,cn=+r.COUNT||1e9,
+ bd=r.BYDAY?r.BYDAY.split(',').map(x=>['SU','MO','TU','WE','TH','FR','SA'].indexOf(x.slice(-2))):null,s0=new Date(ev.s).setHours(0,0,0,0);
+ let n=0;const d=new Date(ev.s);
+ for(let i=0;i<6000&&n<cn&&d<b&&(!un||d<=un);i++,d.setDate(d.getDate()+1)){
+  const dd=Math.round((new Date(d).setHours(0,0,0,0)-s0)/864e5);let ok=false;
+  if(r.FREQ=='DAILY')ok=dd%iv==0;
+  else if(r.FREQ=='WEEKLY')ok=Math.floor((dd+ev.s.getDay())/7)%iv==0&&(bd?bd.includes(d.getDay()):d.getDay()==ev.s.getDay());
+  else if(r.FREQ=='MONTHLY')ok=d.getDate()==ev.s.getDate()&&((d.getFullYear()-ev.s.getFullYear())*12+d.getMonth()-ev.s.getMonth())%iv==0;
+  else if(r.FREQ=='YEARLY')ok=d.getDate()==ev.s.getDate()&&d.getMonth()==ev.s.getMonth()&&(d.getFullYear()-ev.s.getFullYear())%iv==0;
+  if(ok){n++;push(new Date(d))}}
+ return o}
+const evs=(a,b)=>EV.flatMap(e=>occ(e,a,b)).sort((x,y)=>x.s-y.s);
+const day=n=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+n);return d};
+const hm=e=>e.ad?'All day':e.s.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+const esc=s=>(s||'(no title)').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+async function loadICS(){let t=L.icsTxt||'';
+ if(S.cfg.ics){try{const u=S.cfg.ics,r=await fetch(S.cfg.proxy?S.cfg.proxy+encodeURIComponent(u):u);t=await r.text();try{L.icsTxt=t}catch(e){}msg()}
+ catch(e){msg('Could not fetch the calendar link (blocked by CORS). Add a proxy prefix or upload the .ics file.')}}
+ EV=parseICS(t);evRender();calRender()}
+function evRender(){const a=day(0),b=day(2),l=evs(a,b),sec=(n,t)=>{const x=l.filter(e=>e.s>=day(n)&&e.s<day(n+1));
+ return `<h3>${t}</h3>`+(x.length?x.map(e=>`<div class="ev"><b>${hm(e)}</b><span>${esc(e.t)}</span></div>`).join(''):'<div class="ev"><b></b>Nothing scheduled</div>')};
+ $('#events').innerHTML=sec(0,'Today')+sec(1,'Tomorrow')}
+let cy=new Date().getFullYear(),cm=new Date().getMonth();
+function calRender(){const first=new Date(cy,cm,1),start=new Date(cy,cm,1-first.getDay()),end=new Date(+start);end.setDate(end.getDate()+42);
+ const l=evs(start,end),td=day(0).toDateString();
+ let h=`<div class="nav"><span><button data-n="-12">«</button><button data-n="-1">‹</button></span><span>${first.toLocaleDateString([],{month:'long',year:'numeric'})}</span><span><button data-n="1">›</button><button data-n="12">»</button></span></div><div class="grid">`;
+ 'SMTWTFS'.split('').forEach(c=>h+=`<div class="h">${c}</div>`);
+ for(let i=0;i<42;i++){const d=new Date(start);d.setDate(d.getDate()+i);const x=l.filter(e=>e.s.toDateString()==d.toDateString());
+  h+=`<div class="${d.toDateString()==td?'today ':''}${d.getMonth()!=cm?'o':''}">${d.getDate()}${x.slice(0,3).map(e=>`<i>${esc(e.t)}</i>`).join('')}${x.length>3?`<i>+${x.length-3} more</i>`:''}</div>`}
+ $('#cal').innerHTML=h+'</div>'}
+$('#cal').onclick=e=>{const n=e.target.dataset.n;if(n){const d=new Date(cy,cm+ +n,1);cy=d.getFullYear();cm=d.getMonth();calRender()}};
+$('#icsf').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{L.icsTxt=await f.text()}catch(x){}S.cfg.ics='';$('#ics').value='';save();loadICS()};
+
+/* ---------- weather (Open-Meteo, no key) ---------- */
+const WI=c=>c==0?'☀️':c<4?'⛅':c<50?'🌫️':c<70?'🌧️':c<80?'❄️':c<90?'🌦️':'⛈️';
+async function weather(){const el=$('#weather');if(!S.cfg.city){el.innerHTML='<h3>Weather</h3>Set a city in settings.';return}
+ try{const g=await(await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&name='+encodeURIComponent(S.cfg.city))).json(),p=g.results[0],u=S.cfg.f?'fahrenheit':'celsius';
+ const w=await(await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p.latitude}&longitude=${p.longitude}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&temperature_unit=${u}&timezone=auto`)).json();
+ el.innerHTML=`<h3>${p.name}</h3><div class="big">${WI(w.current.weather_code)} ${Math.round(w.current.temperature_2m)}°</div><div>High ${Math.round(w.daily.temperature_2m_max[0])}° · Low ${Math.round(w.daily.temperature_2m_min[0])}°</div>`}
+ catch(e){el.innerHTML='<h3>Weather</h3>City not found.'}}
+
+/* ---------- Spotify (PKCE, runs fully in the browser) ---------- */
+const SC='user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private',RU=location.origin+location.pathname;
+const b64=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+async function tokenReq(p){const r=await fetch('https://accounts.spotify.com/api/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:S.cfg.cid,...p})}),j=await r.json();
+ if(j.access_token){L.sp=JSON.stringify({at:j.access_token,rt:j.refresh_token||JSON.parse(L.sp||'{}').rt,exp:Date.now()+j.expires_in*1e3-6e4})}else throw j}
+async function login(){if(!S.cfg.cid){msg('Enter your Spotify client ID first.');return}
+ const v=b64(crypto.getRandomValues(new Uint8Array(48)));L.sv=v;
+ const c=b64(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v)));
+ location=`https://accounts.spotify.com/authorize?response_type=code&client_id=${S.cfg.cid}&scope=${encodeURIComponent(SC)}&redirect_uri=${encodeURIComponent(RU)}&code_challenge_method=S256&code_challenge=${c}`}
+async function api(path,method='GET',body){let t=JSON.parse(L.sp||'null');if(!t)return null;
+ if(Date.now()>t.exp){await tokenReq({grant_type:'refresh_token',refresh_token:t.rt});t=JSON.parse(L.sp)}
+ const r=await fetch('https://api.spotify.com/v1'+path,{method,headers:{Authorization:'Bearer '+t.at,'Content-Type':'application/json'},body:body&&JSON.stringify(body)});
+ if(r.status==204||r.status==202)return null;if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error?.message||r.status)}
+ return r.json().catch(()=>null)}
+$('#music').innerHTML='<h3>Music</h3><div id="np">Connect Spotify in settings.</div>';
+async function drawMusic(){if(!L.sp)return;
+ if(!$('#pl')){$('#music').innerHTML=`<div class="np"><img id="art" alt=""><div style="min-width:0"><div id="ti" style="font-weight:600"></div><div id="ar" style="opacity:.8"></div></div></div><div id="bar"><div></div></div>
+ <div style="text-align:center"><button data-a="previous">⏮</button><button data-a="pp">⏯</button><button data-a="next">⏭</button></div><select id="pl"><option value="">Pick a playlist…</option></select><input id="q" placeholder="Search songs, press Enter"><div id="res"></div>`;
+ try{const p=await api('/me/playlists?limit=50');p.items.forEach(x=>$('#pl').add(new Option(x.name,x.uri)))}catch(e){msg('Playlists: '+e.message)}}
+ try{const s=await api('/me/player');if(s&&s.item){$('#ti').textContent=s.item.name;$('#ar').textContent=s.item.artists.map(a=>a.name).join(', ');
+ $('#art').src=(s.item.album.images[1]||s.item.album.images[0]||{}).url||'';$('#bar div').style.width=100*s.progress_ms/s.item.duration_ms+'%';window.playing=s.is_playing}}catch(e){}}
+$('#music').onclick=async e=>{const a=e.target.dataset.a;try{
+ if(a=='next'||a=='previous')await api('/me/player/'+a,'POST');
+ if(a=='pp')await api('/me/player/'+(window.playing?'pause':'play'),'PUT');
+ const r=e.target.closest('#res div');if(r)await api('/me/player/play','PUT',{uris:[r.dataset.u]});msg();setTimeout(drawMusic,400)}
+ catch(x){msg('Spotify: '+x.message+' (open Spotify on a device first; playback control needs Premium)')}};
+$('#music').onchange=async e=>{if(e.target.id=='pl'&&e.target.value){try{await api('/me/player/play','PUT',{context_uri:e.target.value});msg();setTimeout(drawMusic,600)}catch(x){msg('Spotify: '+x.message)}}};
+$('#music').onkeydown=async e=>{if(e.target.id=='q'&&e.key=='Enter'){try{const r=await api('/search?type=track&limit=5&q='+encodeURIComponent(e.target.value));
+ $('#res').innerHTML=r.tracks.items.map(t=>`<div data-u="${t.uri}">${esc(t.name)} – ${esc(t.artists[0].name)}</div>`).join('')}catch(x){msg(x.message)}}};
+$('#sp').onclick=login;
+
+/* ---------- settings wiring + start ---------- */
+[['ics','value'],['proxy','value'],['cid','value'],['city','value'],['h24','checked'],['sec','checked'],['f','checked']].forEach(([k,p])=>{
+ $('#'+k)[p]=S.cfg[k]||(p=='checked'?false:'');
+ $('#'+k).onchange=()=>{S.cfg[k]=$('#'+k)[p];save();if(k=='ics'||k=='proxy')loadICS();if(k=='city'||k=='f')weather();tick()}});
+(async()=>{const q=new URLSearchParams(location.search);
+ if(q.get('code')){try{await tokenReq({grant_type:'authorization_code',code:q.get('code'),redirect_uri:RU,code_verifier:L.sv})}catch(e){msg('Spotify login failed.')}history.replaceState({},'',RU)}
+ layout();apply();fill();showBg();tick();loadICS();weather();drawMusic();
+ setInterval(tick,1e3);setInterval(loadICS,9e5);setInterval(weather,18e5);setInterval(drawMusic,3e3)})();
+addEventListener('resize',layout);
+</script></body></html>
