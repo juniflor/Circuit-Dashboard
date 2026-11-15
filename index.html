@@ -16,7 +16,7 @@ body.edit .mod.sel{outline-color:#4af}
 #clock .d{font-size:1.3em;opacity:.85}
 h3{margin:0 0 6px;font-size:1em;opacity:.8;font-weight:600}
 .ev{display:flex;align-items:center;gap:10px;padding:3px 0;font-size:.95em;cursor:pointer}.ev b{min-width:5.5em;font-weight:400;opacity:.75}
-.ev input{margin:0;flex:none;accent-color:currentColor}
+.ev input{margin:0;flex:none;accent-color:currentColor}.ev em{font-style:normal;width:1.4em;text-align:center;flex:none}
 .ev.done span{text-decoration:line-through;opacity:.5}.ev.done b{opacity:.4}
 .dh{font-size:.85em;font-weight:600;opacity:.7;margin:8px 0 2px}
 #events h3{display:flex;justify-content:space-between;align-items:center}
@@ -77,6 +77,11 @@ h3{margin:0 0 6px;font-size:1em;opacity:.8;font-weight:600}
 <label>ICS links<textarea id="ics" rows="4" placeholder="one .ics link per line"></textarea></label>
 <label>Proxy prefix<input type="text" id="proxy" placeholder="https://…workers.dev/?u="></label>
 <label>Upload .ics<input type="file" id="icsf" accept=".ics" multiple></label><div id="calist"></div>
+<h4>Icons (keyword=icon, one per line)</h4>
+<textarea id="rules" rows="4" placeholder="calculus=➗&#10;biology=🧬"></textarea>
+<h4>Move to another device</h4>
+<button id="exp">Export settings</button>
+<label>Import<input type="file" id="imp" accept=".json"></label>
 <h4>Spotify</h4>
 <label>Client ID<input type="text" id="cid"></label>
 <button id="sp">Connect Spotify</button>
@@ -172,8 +177,15 @@ async function loadICS(){let t=CALS.map(c=>c.t).join('\n');
  t+='\n'+p.join('\n');
  msg(bad?`${bad} of ${us.length} calendar links failed (CORS, wrong proxy prefix, or the Worker blocks that site).`:'')}
  EV=parseICS(t);evRender();calRender()}
+const RULES=[[/meeting|office hours|appointment|interview|advis|zoom|conference|\bcall\b/i,'👤','Meeting'],
+[/music|\bmusc?[\s-]?\d|\bmusc?\b|choir|\bband\b|orchestra|theory|piano|guitar|ensemble|sight.?sing/i,'🎵','Music homework'],
+[/\bchem(istry)?\b|\bchm[\s-]?\d|\bsos\b/i,'🧪','Chemistry homework'],
+[/\bphys(ics)?\b|\bphy[\s-]?\d|\bi-\s?\d+|data analysis|pre-?lab/i,'🪐','Physics homework'],
+[/homework|\bhw\b|assignment|quiz|exam|\btests?\b|essay|paper|reading|project|\blab\b|worksheet|discussion|\bdue\b/i,'📖','Homework']];
+function cat(t){t=t||'';for(const l of(S.cfg.rules||'').split('\n')){const i=l.indexOf('=');if(i>0&&t.toLowerCase().includes(l.slice(0,i).trim().toLowerCase()))return[l.slice(i+1).trim()||'📌','Custom']}
+ for(const r of RULES)if(r[0].test(t))return[r[1],r[2]];return['📌','Event']}
 const dl=d=>+d==+day(0)?'Today':+d==+day(1)?'Tomorrow':d.toLocaleDateString([],{weekday:'short',month:'short',day:'numeric'});
-const row=e=>`<label class="ev${S.done[e.k]?' done':''}"><input type="checkbox" data-k="${encodeURIComponent(e.k)}"${S.done[e.k]?' checked':''}><b>${hm(e)}</b><span>${esc(e.t)}</span></label>`;
+const row=e=>`<label class="ev${S.done[e.k]?' done':''}"><input type="checkbox" data-k="${encodeURIComponent(e.k)}"${S.done[e.k]?' checked':''}><em title="${cat(e.t)[1]}">${cat(e.t)[0]}</em><b>${hm(e)}</b><span>${esc(e.t)}</span></label>`;
 function evRender(){const el=$('#events'),sc=el.scrollTop;let h='';
  const tb=`<span><button data-u="undo" title="Undo (Ctrl+Z)"${UN.length?'':' disabled'}>↶</button><button data-u="redo" title="Redo"${RE.length?'':' disabled'}>↷</button></span>`;
  if(SEL!=null){const d=new Date(SEL),x=evs(d,new Date(d.getFullYear(),d.getMonth(),d.getDate()+1)).filter(e=>e.s>=d);
@@ -189,7 +201,7 @@ function calRender(){const first=new Date(cy,cm,1),start=new Date(cy,cm,1-first.
  let h=`<div class="nav"><span><button data-n="-12">«</button><button data-n="-1">‹</button></span><span>${first.toLocaleDateString([],{month:'long',year:'numeric'})} <button data-today="1">Today</button></span><span><button data-n="1">›</button><button data-n="12">»</button></span></div><div class="grid">`;
  'SMTWTFS'.split('').forEach(c=>h+=`<div class="h">${c}</div>`);
  for(let i=0;i<42;i++){const d=new Date(start);d.setDate(d.getDate()+i);const x=l.filter(e=>e.s.toDateString()==d.toDateString());
-  h+=`<div data-d="${+d}" class="${d.toDateString()==td?'today ':''}${+d==SEL?'sel ':''}${d.getMonth()!=cm?'o':''}">${d.getDate()}${x.slice(0,3).map(e=>`<i class="${S.done[e.k]?'x':''}">${esc(e.t)}</i>`).join('')}${x.length>3?`<i>+${x.length-3} more</i>`:''}</div>`}
+  h+=`<div data-d="${+d}" class="${d.toDateString()==td?'today ':''}${+d==SEL?'sel ':''}${d.getMonth()!=cm?'o':''}">${d.getDate()}${x.slice(0,3).map(e=>`<i class="${S.done[e.k]?'x':''}">${cat(e.t)[0]} ${esc(e.t)}</i>`).join('')}${x.length>3?`<i>+${x.length-3} more</i>`:''}</div>`}
  $('#cal').innerHTML=h+'</div>'}
 $('#cal').onclick=e=>{const b=e.target.closest('button');
  if(b&&b.dataset.n){const d=new Date(cy,cm+ +b.dataset.n,1);cy=d.getFullYear();cm=d.getMonth();calRender();return}
@@ -251,10 +263,19 @@ $('#music').onkeydown=async e=>{if(e.target.id=='q'&&e.key=='Enter'){try{const r
  $('#res').innerHTML=r.tracks.items.map(t=>`<div data-u="${t.uri}">${esc(t.name)} – ${esc(t.artists[0].name)}</div>`).join('')}catch(x){msg(x.message)}}};
 $('#sp').onclick=login;
 
+/* ---------- export / import ---------- */
+$('#exp').onclick=async()=>{const b=await idb('get');let bg=null;
+ if(b)bg=await new Promise(r=>{const f=new FileReader();f.onload=()=>r({url:f.result});f.readAsDataURL(b)});
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({v:1,S,CALS,bg})],{type:'application/json'}));a.download='dashboard-settings.json';a.click()};
+$('#imp').onchange=async e=>{try{const j=JSON.parse(await e.target.files[0].text());if(!j.S)throw 0;
+ S=j.S;S.done=S.done||{};save();CALS=j.CALS||[];saveCals();
+ if(j.bg)await idb('put',await(await fetch(j.bg.url)).blob());else await idb('del');
+ location.reload()}catch(x){msg('That is not a valid dashboard settings file.')}};
+
 /* ---------- settings wiring + start ---------- */
-[['ics','value'],['proxy','value'],['cid','value'],['city','value'],['h24','checked'],['sec','checked'],['f','checked']].forEach(([k,p])=>{
+[['ics','value'],['proxy','value'],['cid','value'],['rules','value'],['city','value'],['h24','checked'],['sec','checked'],['f','checked']].forEach(([k,p])=>{
  $('#'+k)[p]=S.cfg[k]||(p=='checked'?false:'');
- $('#'+k).onchange=()=>{S.cfg[k]=$('#'+k)[p];save();if(k=='ics'||k=='proxy')loadICS();if(k=='city'||k=='f')weather();tick()}});
+ $('#'+k).onchange=()=>{S.cfg[k]=$('#'+k)[p];save();if(k=='ics'||k=='proxy')loadICS();if(k=='city'||k=='f')weather();if(k=='rules'){evRender();calRender()}tick()}});
 (async()=>{const q=new URLSearchParams(location.search);
  if(q.get('code')){try{await tokenReq({grant_type:'authorization_code',code:q.get('code'),redirect_uri:RU,code_verifier:L.sv})}catch(e){msg('Spotify login failed.')}history.replaceState({},'',RU)}
  layout();apply();fill();showBg();tick();calList();loadICS();weather();drawMusic();
